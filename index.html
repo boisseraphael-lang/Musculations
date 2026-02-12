@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Répertoire complet d'exercices de musculation avec illustrations, descriptions détaillées et vidéos explicatives pour chaque groupe musculaire.">
+    <title>Exercices de Musculation | Guide Complet</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <!-- jsPDF for PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <a href="#" class="logo" id="logo-home">
+                    <img src="asset/logo.png" alt="Logo" class="logo-icon-img">
+                    <span class="logo-text">Musculations</span>
+                </a>
+                <nav class="nav-breadcrumb" id="breadcrumb">
+                    <!-- Dynamic breadcrumb -->
+                </nav>
+                <!-- Creator Mode Toggle Button -->
+                <button class="creator-toggle-btn" id="my-sessions-btn" style="margin-right: 10px;">
+                    <span class="creator-icon">📂</span>
+                    <span class="creator-text">Mes Séances</span>
+                </button>
+                <button class="creator-toggle-btn" id="creator-toggle">
+                    <span class="creator-icon">🛠️</span>
+                    <span class="creator-text">Créer une séance</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content" id="main-content">
+            <!-- Home View -->
+            <section class="view view-home active" id="view-home">
+                <div class="hero">
+                    <h1 class="hero-title">
+                        <span class="title-gradient">Exercices de Musculation</span>
+                    </h1>
+                    <p class="hero-subtitle">Découvrez des exercices détaillés pour chaque groupe musculaire</p>
+
+                    <!-- Search Bar -->
+                    <div class="search-container">
+                        <div class="search-wrapper">
+                            <span class="search-icon">🔍</span>
+                            <input type="text" id="search-input" class="search-input"
+                                placeholder="Rechercher un exercice..." autocomplete="off">
+                            <button class="search-clear" id="search-clear" aria-label="Effacer">✕</button>
+                        </div>
+                        <div class="search-results" id="search-results">
+                            <!-- Dynamic search results -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Muscle Categories -->
+                <div class="categories-section">
+                    <h2 class="section-title">Groupes Musculaires</h2>
+                    <div class="categories-grid" id="categories-grid">
+                        <!-- Dynamic categories will be rendered here -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Muscle Exercises View -->
+            <section class="view view-muscle" id="view-muscle">
+                <div class="muscle-header">
+                    <h2 class="muscle-title" id="muscle-title"><!-- Dynamic --></h2>
+                    <p class="muscle-count" id="muscle-count"><!-- Dynamic --></p>
+                    <button class="back-button back-button-detail" id="back-to-home">
+                        <span class="back-icon">←</span>
+                        <span>Retour à l'accueil</span>
+                    </button>
+                </div>
+
+                <!-- Flex container for filter + exercises -->
+                <div class="muscle-content-wrapper" id="muscle-content-wrapper">
+                    <!-- Filter Panel (always visible when muscle has filters) -->
+                    <aside class="filter-panel" id="filter-panel">
+                        <div class="filter-panel-header">
+                            <h3>Filtrer par chef</h3>
+                        </div>
+                        <div class="filter-panel-content" id="filter-checkboxes">
+                            <!-- Dynamic checkboxes will be rendered here -->
+                        </div>
+                        <div class="filter-panel-actions">
+                            <button class="filter-reset" id="filter-reset">Réinitialiser</button>
+                        </div>
+                    </aside>
+
+                    <!-- Exercises Grid -->
+                    <div class="exercises-grid" id="exercises-grid">
+                        <!-- Dynamic exercises list -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Exercise Detail View -->
+            <section class="view view-exercise" id="view-exercise">
+                <article class="exercise-detail" id="exercise-detail">
+                    <!-- Dynamic exercise detail including back button -->
+                </article>
+            </section>
+        </main>
+
+        <!-- Mode Selection Overlay -->
+        <div class="mode-selection-overlay" id="mode-selection-overlay">
+            <div class="mode-selection-container">
+                <h2 class="mode-selection-title">🎯 Choisissez votre méthode</h2>
+                <p class="mode-selection-subtitle">Chaque mode adapte l'interface à votre style d'entraînement</p>
+
+                <div class="mode-cards-grid">
+                    <!-- Mode BLOC -->
+                    <div class="mode-card" data-mode="bloc">
+                        <button class="mode-info-btn" data-mode="bloc" title="En savoir plus">?</button>
+                        <div class="mode-card-icon">🏗️</div>
+                        <h3 class="mode-card-title">Par Bloc</h3>
+                        <p class="mode-card-desc">Séries classiques, un exercice à la fois</p>
+                    </div>
+
+                    <!-- Mode CIRCUIT -->
+                    <div class="mode-card" data-mode="circuit">
+                        <button class="mode-info-btn" data-mode="circuit" title="En savoir plus">?</button>
+                        <div class="mode-card-icon">🔄</div>
+                        <h3 class="mode-card-title">Circuit Training</h3>
+                        <p class="mode-card-desc">Enchaînement rapide, repos en fin de tour</p>
+                    </div>
+
+                    <!-- Mode PARCOURS -->
+                    <div class="mode-card" data-mode="parcours">
+                        <button class="mode-info-btn" data-mode="parcours" title="En savoir plus">?</button>
+                        <div class="mode-card-icon">⚡</div>
+                        <h3 class="mode-card-title">Parcours / Chipper</h3>
+                        <p class="mode-card-desc">Volume total à accomplir, à votre rythme</p>
+                    </div>
+
+                    <!-- Mode SUPERSET -->
+                    <div class="mode-card" data-mode="superset">
+                        <button class="mode-info-btn" data-mode="superset" title="En savoir plus">?</button>
+                        <div class="mode-card-icon">🔗</div>
+                        <h3 class="mode-card-title">Superset</h3>
+                        <p class="mode-card-desc">Exercices couplés, intensité maximale</p>
+                    </div>
+
+                    <!-- Mode EMOM -->
+                    <div class="mode-card" data-mode="emom">
+                        <button class="mode-info-btn" data-mode="emom" title="En savoir plus">?</button>
+                        <div class="mode-card-icon">⏱️</div>
+                        <h3 class="mode-card-title">EMOM</h3>
+                        <p class="mode-card-desc">Every Minute On the Minute</p>
+                    </div>
+                </div>
+
+                <button class="mode-selection-close" id="mode-selection-close">✕ Annuler</button>
+            </div>
+        </div>
+
+        <!-- Mode Info Modal -->
+        <div class="mode-info-overlay" id="mode-info-overlay">
+            <div class="mode-info-modal">
+                <button class="mode-info-close" id="mode-info-close">✕</button>
+                <h3 class="mode-info-title" id="mode-info-title">Titre du Mode</h3>
+                <p class="mode-info-text" id="mode-info-text">Description du mode...</p>
+                <button class="mode-info-ok" id="mode-info-ok">Compris !</button>
+            </div>
+        </div>
+
+        <!-- Circuit Config Modal -->
+        <div class="circuit-config-overlay" id="circuit-config-overlay">
+            <div class="circuit-config-modal">
+                <div class="modal-header">
+                    <h3 class="modal-title">⚙️ Paramètres du Circuit</h3>
+                    <button class="modal-close" id="circuit-config-close">✕</button>
+                </div>
+                <div class="circuit-config-body">
+                    <div class="form-group">
+                        <label for="circuit-tours">Nombre de Tours</label>
+                        <input type="number" id="circuit-tours" min="1" max="20" value="3">
+                    </div>
+                    <div class="form-group">
+                        <label for="circuit-effort">Temps d'effort par défaut (sec)</label>
+                        <input type="number" id="circuit-effort" min="10" max="120" value="45">
+                    </div>
+                    <div class="form-group">
+                        <label for="circuit-repos-exo">Repos entre exercices (sec)</label>
+                        <input type="number" id="circuit-repos-exo" min="0" max="60" value="15">
+                    </div>
+                    <div class="form-group">
+                        <label for="circuit-repos-tour">Repos fin de tour (sec)</label>
+                        <input type="number" id="circuit-repos-tour" min="30" max="300" value="90">
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-cancel" id="circuit-config-cancel">Annuler</button>
+                        <button type="button" class="btn-validate" id="circuit-config-save">✓ Sauvegarder</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- EMOM Config Modal -->
+        <div class="circuit-config-overlay" id="emom-config-overlay">
+            <div class="circuit-config-modal">
+                <div class="modal-header">
+                    <h3 class="modal-title">⏱️ Configuration EMOM</h3>
+                    <button class="modal-close" id="emom-config-close">✕</button>
+                </div>
+                <div class="circuit-config-body">
+                    <div class="form-group">
+                        <label for="emom-duration">Durée (minutes)</label>
+                        <input type="number" id="emom-duration" min="1" max="60" value="20">
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-cancel" id="emom-config-cancel">Annuler</button>
+                        <button type="button" class="btn-validate" id="emom-config-save">✓ Valider</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Generic Confirmation Modal -->
+        <div class="circuit-config-overlay" id="confirmation-overlay" style="z-index: 1200;">
+            <div class="circuit-config-modal">
+                <div class="modal-header">
+                    <h3 class="modal-title">⚠️ Êtes-vous sûr ?</h3>
+                    <button class="modal-close" id="confirmation-close">✕</button>
+                </div>
+                <div class="circuit-config-body">
+                    <p id="confirmation-message" style="margin-bottom: 20px; color: var(--text-primary);">Message de
+                        confirmation...</p>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-cancel" id="confirmation-cancel">Annuler</button>
+                        <button type="button" class="btn-validate btn-danger" id="confirmation-ok"
+                            style="background: var(--danger);">Oui, Confirmer</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Creator Sidebar -->
+        <aside class="creator-sidebar" id="creator-sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-header-top">
+                    <button class="btn-change-mode" id="btn-change-mode" title="Changer de mode">⬅ Mode</button>
+                    <span class="current-mode-badge" id="current-mode-badge">Bloc</span>
+                </div>
+                <h2 class="sidebar-title">🏋️ Ma Séance</h2>
+                <button class="sidebar-close" id="sidebar-close">✕</button>
+            </div>
+
+            <div class="sidebar-actions" id="sidebar-actions">
+                <button class="btn-new-block" id="btn-new-block">
+                    <span>➕</span> Nouveau Bloc
+                </button>
+            </div>
+
+            <div class="sidebar-content" id="sidebar-content">
+                <!-- Dynamic blocks will be rendered here -->
+                <div class="sidebar-empty" id="sidebar-empty">
+                    <div class="empty-icon">📋</div>
+                    <p>Aucun bloc créé</p>
+                    <p class="empty-hint">Cliquez sur "Nouveau Bloc" pour commencer</p>
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <button class="btn-save-session" id="btn-save-session">
+                    💾 Sauvegarder
+                </button>
+                <button class="btn-export-pdf" id="btn-export-pdf">
+                    📄 Télécharger (PDF)
+                </button>
+                <button class="btn-clear-workout" id="btn-clear-workout">
+                    🗑️ Vider la séance
+                </button>
+            </div>
+        </aside>
+
+        <!-- Exercise Configuration Modal -->
+        <div class="modal-overlay" id="modal-overlay" style="overflow-y: auto;">
+            <div class="modal modal-wide" id="exercise-modal" style="margin: 50px auto;">
+                <div class="modal-header">
+                    <h3 class="modal-title" id="modal-title">Configurer l'exercice</h3>
+                    <button class="modal-close" id="modal-close">✕</button>
+                </div>
+                <div class="modal-body-wide">
+                    <!-- Left Column: Image -->
+                    <div class="modal-image-column">
+                        <div class="modal-exercise-image" id="modal-exercise-image">
+                            <img src="asset/logo_muscu_app_2.png" alt="Exercise illustration" id="modal-img">
+                        </div>
+                        <div class="modal-exercise-name" id="modal-exercise-name">
+                            <!-- Dynamic exercise name -->
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Form -->
+                    <form class="modal-form-column" id="modal-form">
+                        <div class="form-group">
+                            <label for="input-sets">Nombre de séries *</label>
+                            <input type="number" id="input-sets" min="1" max="20" value="3" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="input-reps">Répétitions *</label>
+                            <input type="text" id="input-reps" placeholder="ex: 12 ou 8-12" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="input-rest">Temps de repos *</label>
+                            <div class="input-with-unit">
+                                <input type="number" id="input-rest" min="0" max="600" value="60" required>
+                                <span class="input-unit">sec</span>
+                            </div>
+                        </div>
+
+                        <!-- Load Percentage Field -->
+                        <div class="form-group">
+                            <label for="input-load">Charge (% 1RM)</label>
+                            <div class="load-input-group">
+                                <input type="range" id="input-load-slider" min="30" max="100" value="70" step="5"
+                                    class="load-slider">
+                                <div class="load-number-wrapper">
+                                    <input type="number" id="input-load" min="30" max="100" value="70" step="5"
+                                        class="load-number">
+                                    <span class="input-unit">%</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="input-notes">Notes (optionnel)</label>
+                            <textarea id="input-notes" placeholder="ex: Attention au dos, tempo lent..."></textarea>
+                        </div>
+
+                        <!-- Block selector (shown if multiple blocks) -->
+                        <div class="form-group" id="block-selector-group" style="display: none;">
+                            <label for="select-block">Ajouter au bloc</label>
+                            <select id="select-block">
+                                <!-- Dynamic options -->
+                            </select>
+                        </div>
+
+                        <div class="modal-actions">
+                            <button type="button" class="btn-cancel" id="btn-cancel">Annuler</button>
+                            <button type="submit" class="btn-validate" id="btn-validate">✓ Valider</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Block Name Modal -->
+        <div class="modal-overlay" id="block-modal-overlay">
+            <div class="modal modal-small" id="block-modal">
+                <div class="modal-header">
+                    <h3 class="modal-title">Nouveau Bloc</h3>
+                    <button class="modal-close" id="block-modal-close">✕</button>
+                </div>
+                <form class="modal-content" id="block-form">
+                    <div class="form-group">
+                        <label for="input-block-name">Nom du bloc</label>
+                        <input type="text" id="input-block-name" placeholder="ex: Échauffement, Jambes..." required>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-cancel" id="block-cancel">Annuler</button>
+                        <button type="submit" class="btn-validate">✓ Créer</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- My Sessions View -->
+        <section class="view view-my-sessions" id="view-my-sessions">
+            <div class="my-sessions-header">
+                <h1 class="hero-title"><span class="title-gradient">Mes Dossiers</span></h1>
+                <div class="search-container" style="max-width: 600px; margin: 10px auto;">
+                    <div class="search-wrapper">
+                        <span class="search-icon">📂</span>
+                        <input type="text" id="sessions-search-input" class="search-input"
+                            placeholder="Rechercher dans mes dossiers..." autocomplete="off">
+                    </div>
+                </div>
+            </div>
+
+            <div class="sessions-actions">
+                <button class="action-btn-primary" id="btn-create-folder">➕ Nouveau Dossier</button>
+            </div>
+
+            <!-- Breadcrumb for folder navigation -->
+            <div class="folder-breadcrumb" id="folder-breadcrumb" style="display: none;">
+                <span class="breadcrumb-item" data-id="root">Mes Dossiers</span>
+                <span class="breadcrumb-separator">/</span>
+                <span class="breadcrumb-item active" id="current-folder-name">Nom du Dossier</span>
+            </div>
+
+            <div class="folders-grid" id="folders-grid">
+                <!-- Dynamic Folders/Sessions content -->
+                <div class="empty-state" id="folders-empty-state">
+                    <div class="empty-icon">📂</div>
+                    <h3>Aucun dossier trouvé</h3>
+                    <p>Commencez par créer votre premier dossier pour organiser vos séances.</p>
+                    <button class="action-btn-primary" onclick="createNewFolder()">➕ Créer un premier dossier</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>© 2026 FitExercices - Guide de Musculation</p>
+        </footer>
+
+        <!-- Loading Overlay -->
+        <div class="loading-overlay" id="loading">
+            <div class="loading-spinner"></div>
+            <p>Chargement des exercices...</p>
+        </div>
+        </main>
+
+        <!-- Save Session Modal -->
+        <div class="circuit-config-overlay" id="save-session-overlay">
+            <div class="circuit-config-modal">
+                <div class="modal-header">
+                    <h3 class="modal-title">💾 Enregistrer la séance</h3>
+                    <button class="modal-close" id="save-session-close">✕</button>
+                </div>
+                <div class="circuit-config-body">
+                    <div class="form-group">
+                        <label for="save-session-name">Nom de la séance</label>
+                        <input type="text" id="save-session-name" placeholder="Ex: Pectoraux Lundi" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="save-session-folder">Dossier</label>
+                        <div class="select-wrapper">
+                            <select id="save-session-folder" required>
+                                <option value="" disabled selected>Choisir un dossier...</option>
+                            </select>
+                        </div>
+                        <div class="folder-creation-link">
+                            <a href="#" id="link-create-folder-modal">➕ Créer un nouveau dossier</a>
+                        </div>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-cancel" id="save-session-cancel">Annuler</button>
+                        <button type="button" class="btn-validate" id="save-session-confirm" disabled>✓ Valider</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Superset Block Config Modal -->
+        <div class="circuit-config-overlay" id="superset-block-overlay">
+            <div class="circuit-config-modal">
+                <div class="modal-header">
+                    <h3 class="modal-title">⚙️ Configurer le Superset</h3>
+                    <button class="modal-close" id="superset-block-close">✕</button>
+                </div>
+                <div class="circuit-config-body">
+                    <div class="form-group">
+                        <label>Nombre de séries</label>
+                        <input type="number" id="superset-sets" class="config-input" value="4" min="1" max="10">
+                    </div>
+                    <div class="form-group">
+                        <label>Temps de repos (sec)</label>
+                        <div class="slider-container">
+                            <input type="range" id="superset-rest-slider" min="0" max="600" step="15" value="90"
+                                oninput="document.getElementById('superset-rest').value = this.value">
+                            <input type="number" id="superset-rest" class="config-input-small" value="90" min="0"
+                                max="600" step="15"
+                                oninput="document.getElementById('superset-rest-slider').value = this.value">
+                        </div>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-cancel" id="superset-block-cancel">Annuler</button>
+                        <button type="button" class="btn-validate" id="superset-block-confirm">✓ Valider</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="app.js"></script>
+    <script src="creator-mode.js"></script>
+    <script src="session-manager.js"></script>
+</body>
+
+</html>
