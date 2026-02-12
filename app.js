@@ -618,9 +618,6 @@ function hideAllViews() {
     // Also hide My Sessions view to prevent phantom rendering
     var viewMySessions = document.getElementById('view-my-sessions');
     if (viewMySessions) viewMySessions.classList.remove('active');
-    // Also deactivate creator mode sidebar if active
-    var appContainer = document.querySelector('.app-container');
-    if (appContainer) appContainer.classList.remove('creator-active');
 }
 
 // ===== Breadcrumb =====

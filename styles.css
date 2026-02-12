@@ -1649,6 +1649,15 @@ body::after {
     transition: margin-right var(--transition-medium);
 }
 
+/* Compact grids when creator sidebar is open */
+.app-container.creator-active .categories-grid {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+.app-container.creator-active .exercises-grid {
+    grid-template-columns: repeat(2, 1fr);
+}
+
 /* ===== Creator Sidebar ===== */
 .creator-sidebar {
     position: fixed;
@@ -3034,19 +3043,67 @@ body::after {
 
 .view-my-sessions .hero-title {
     font-size: clamp(24px, 4vw, 36px);
-    margin-bottom: 10px;
+    margin-bottom: 6px;
 }
 
 .my-sessions-header {
     text-align: center;
-    margin-bottom: 20px;
-    padding-top: 10px;
+    margin-bottom: 16px;
+    padding-top: 0;
 }
 
 .sessions-actions {
     display: flex;
     justify-content: flex-end;
     margin-bottom: 20px;
+}
+
+/* Deep Search Dropdown */
+.sessions-search-dropdown {
+    position: relative;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    margin-top: 8px;
+    max-height: 300px;
+    overflow-y: auto;
+    z-index: 100;
+    box-shadow: var(--shadow-lg);
+}
+
+.search-result-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.search-result-item:last-child {
+    border-bottom: none;
+}
+
+.search-result-item:hover {
+    background: var(--bg-hover);
+}
+
+.search-result-name {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.search-result-folder {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.search-no-results {
+    padding: 16px;
+    text-align: center;
+    color: var(--text-muted);
+    font-style: italic;
 }
 
 .action-btn-primary {

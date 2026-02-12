@@ -5,6 +5,8 @@
 let userFolders = [];
 let currentFolderId = null;
 let currentFolder = null;
+let editingSessionId = null;
+let editingFolderId = null;
 
 // DOM Elements
 const sessionElements = {
@@ -120,6 +122,14 @@ function setupSessionEventListeners() {
     // Validate save form on input
     if (sessionElements.saveNameInput) sessionElements.saveNameInput.addEventListener('input', validateSaveForm);
     if (sessionElements.saveFolderSelect) sessionElements.saveFolderSelect.addEventListener('change', validateSaveForm);
+
+    // Deep search in My Sessions
+    var sessionsSearchInput = document.getElementById('sessions-search-input');
+    if (sessionsSearchInput) {
+        sessionsSearchInput.addEventListener('input', function () {
+            handleSessionsSearch(this.value.trim().toLowerCase());
+        });
+    }
 }
 
 // Navigation Functions
@@ -281,7 +291,7 @@ function renderSessions(filterTerm = '') {
         `;
 
         // Load session
-        card.querySelector('.btn-load').addEventListener('click', () => loadSessionToCreator(session));
+        card.querySelector('.btn-load').addEventListener('click', () => loadSessionToCreator(session, currentFolderId));
 
         // Delete session
         card.querySelector('.btn-delete').addEventListener('click', () => deleteSession(session.id));
@@ -365,12 +375,15 @@ function calculateTotalExercises(session) {
     return session.data.reduce((acc, block) => acc + (block.exercises ? block.exercises.length : 0), 0);
 }
 
-function loadSessionToCreator(session) {
-    // 1. Set global variables in creator-mode.js
-    // We assume these are accessible globally
+function loadSessionToCreator(session, folderId) {
+    // Track editing state to prevent duplication
+    editingSessionId = session.id;
+    editingFolderId = folderId || (currentFolder ? currentFolder.id : null);
+    console.log('Loading session for edit:', session.name, '| ID:', editingSessionId);
+
     if (typeof workout !== 'undefined') {
         // Deep copy to avoid reference issues
-        workout = JSON.parse(JSON.stringify(session.data));
+        workout = JSON.parse(JSON.stringify(session.data || []));
         sessionMode = session.mode || 'bloc';
 
         // Load specific settings if they exist
@@ -383,23 +396,37 @@ function loadSessionToCreator(session) {
 
         // Save to current storage
         saveWorkoutToStorage();
-        if (sessionMode === 'circuit') saveCircuitSettings();
-        if (sessionMode === 'emom') saveEmomSettings();
+        if (sessionMode === 'circuit' && typeof saveCircuitSettings === 'function') saveCircuitSettings();
+        if (sessionMode === 'emom' && typeof saveEmomSettings === 'function') saveEmomSettings();
 
-        // Switch view
-        if (typeof toggleCreatorMode === 'function') {
-            // Ensure we are in creator mode
-            if (!isCreatorMode) toggleCreatorMode();
+        // 1. Hide ALL views (including My Sessions)
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
 
-            // Switch to creator view
-            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-            // Assuming creator view is managed by toggleCreatorMode mostly, 
-            // but we might need to hide My Sessions explicitly
-            if (sessionElements.viewMySessions) sessionElements.viewMySessions.classList.remove('active');
+        // 2. Show Home view (categories) so the left side isn't black
+        var viewHome = document.getElementById('view-home');
+        if (viewHome) viewHome.classList.add('active');
 
-            // Update Sidebar
-            renderSidebar();
-            updateModeUI();
+        // 3. Activate creator mode (sidebar + split view)
+        var appContainer = document.querySelector('.app-container');
+        if (appContainer) appContainer.classList.add('creator-active');
+
+        var creatorToggle = document.getElementById('creator-toggle');
+        if (creatorToggle) creatorToggle.classList.add('active');
+
+        var sidebar = document.querySelector('.creator-sidebar');
+        if (sidebar) sidebar.classList.add('open');
+
+        if (typeof isCreatorMode !== 'undefined') isCreatorMode = true;
+
+        // 4. Update sidebar and mode UI
+        if (typeof renderSidebar === 'function') renderSidebar();
+        if (typeof updateModeUI === 'function') updateModeUI();
+        if (typeof updateExerciseCardButtons === 'function') {
+            setTimeout(function () { updateExerciseCardButtons(); }, 100);
+        }
+
+        if (typeof showQuickFeedback === 'function') {
+            showQuickFeedback('✏️ Séance chargée pour modification');
         }
     }
 }
@@ -489,32 +516,65 @@ function validateSaveForm() {
 }
 
 function handleSaveSession() {
-    console.log("Sauvegarde lancée...");
+    console.log('Sauvegarde lancée...');
 
-    const name = sessionElements.saveNameInput ? sessionElements.saveNameInput.value.trim() : '';
-    const folderId = sessionElements.saveFolderSelect ? sessionElements.saveFolderSelect.value : '';
+    var name = sessionElements.saveNameInput ? sessionElements.saveNameInput.value.trim() : '';
+    var folderId = sessionElements.saveFolderSelect ? sessionElements.saveFolderSelect.value : '';
 
-    console.log("Nom:", name, "| Dossier ID:", folderId);
+    console.log('Nom:', name, '| Dossier ID:', folderId);
 
     if (!name || !folderId) {
-        console.warn("Sauvegarde bloquée: nom ou dossier manquant");
+        console.warn('Sauvegarde bloquée: nom ou dossier manquant');
         return;
     }
 
-    const folder = userFolders.find(f => f.id === folderId);
+    var folder = userFolders.find(function (f) { return f.id === folderId; });
     if (!folder) {
-        console.error("Dossier non trouvé:", folderId);
+        console.error('Dossier non trouvé:', folderId);
         return;
     }
 
-    // Get workout data from creator globals
-    const workoutData = (typeof workout !== 'undefined') ? workout : [];
-    const mode = (typeof sessionMode !== 'undefined') ? sessionMode : 'bloc';
+    var workoutData = (typeof workout !== 'undefined') ? workout : [];
+    var mode = (typeof sessionMode !== 'undefined') ? sessionMode : 'bloc';
 
-    console.log("Mode:", mode, "| Exercices:", workoutData.length);
+    console.log('Mode:', mode, '| Blocs:', workoutData.length, '| Edit ID:', editingSessionId);
 
-    // Prepare session object
-    const newSession = {
+    // Check if we are updating an existing session
+    if (editingSessionId && editingFolderId) {
+        var editFolder = userFolders.find(function (f) { return f.id === editingFolderId; });
+        if (editFolder && editFolder.sessions) {
+            var existingIdx = editFolder.sessions.findIndex(function (s) { return s.id === editingSessionId; });
+            if (existingIdx !== -1) {
+                // Update in-place
+                editFolder.sessions[existingIdx].name = name;
+                editFolder.sessions[existingIdx].mode = mode;
+                editFolder.sessions[existingIdx].data = JSON.parse(JSON.stringify(workoutData));
+                editFolder.sessions[existingIdx].updatedAt = new Date().toISOString();
+                editFolder.sessions[existingIdx].circuitSettings = (typeof circuitSettings !== 'undefined') ? JSON.parse(JSON.stringify(circuitSettings)) : null;
+                editFolder.sessions[existingIdx].emomSettings = (typeof emomSettings !== 'undefined') ? JSON.parse(JSON.stringify(emomSettings)) : null;
+
+                // If folder changed, move the session
+                if (folderId !== editingFolderId) {
+                    var movedSession = editFolder.sessions.splice(existingIdx, 1)[0];
+                    if (!folder.sessions) folder.sessions = [];
+                    folder.sessions.push(movedSession);
+                }
+
+                saveUserFolders();
+                closeSaveModal();
+                editingSessionId = null;
+                editingFolderId = null;
+                console.log('Séance mise à jour');
+                if (typeof showQuickFeedback === 'function') {
+                    showQuickFeedback('✓ Séance mise à jour');
+                }
+                return;
+            }
+        }
+    }
+
+    // CREATE new session
+    var newSession = {
         id: 'sess_' + Date.now(),
         name: name,
         mode: mode,
@@ -527,18 +587,96 @@ function handleSaveSession() {
     if (!folder.sessions) folder.sessions = [];
     folder.sessions.push(newSession);
 
-    // Force save to localStorage
     saveUserFolders();
-
-    console.log("✓ Séance sauvegardée dans:", folder.name);
-
-    // Close modal
     closeSaveModal();
+    editingSessionId = null;
+    editingFolderId = null;
 
-    // Show success feedback
+    console.log('Nouvelle séance créée dans:', folder.name);
     if (typeof showQuickFeedback === 'function') {
         showQuickFeedback('✓ Séance enregistrée');
     } else {
         alert('Séance enregistrée avec succès !');
     }
 }
+
+// ===== Deep Search =====
+function handleSessionsSearch(term) {
+    if (!term || term.length < 2) {
+        removeSearchDropdown();
+        if (currentFolderId) {
+            renderSessions();
+        } else {
+            renderFolders();
+        }
+        return;
+    }
+
+    var results = [];
+    userFolders.forEach(function (folder) {
+        if (!folder.sessions) return;
+        folder.sessions.forEach(function (session) {
+            if (session.name.toLowerCase().indexOf(term) !== -1) {
+                results.push({
+                    session: session,
+                    folderId: folder.id,
+                    folderName: folder.name
+                });
+            }
+        });
+    });
+
+    showSearchDropdown(results);
+}
+
+function showSearchDropdown(results) {
+    removeSearchDropdown();
+
+    var container = document.querySelector('.my-sessions-header');
+    if (!container) return;
+
+    var dropdown = document.createElement('div');
+    dropdown.className = 'sessions-search-dropdown';
+    dropdown.id = 'sessions-search-dropdown';
+
+    if (results.length === 0) {
+        dropdown.innerHTML = '<div class="search-no-results">Aucun résultat</div>';
+    } else {
+        results.forEach(function (r) {
+            var item = document.createElement('div');
+            item.className = 'search-result-item';
+            item.innerHTML = '<span class="search-result-name">' + r.session.name + '</span>' +
+                '<span class="search-result-folder">📂 ' + r.folderName + '</span>';
+            item.addEventListener('click', function () {
+                removeSearchDropdown();
+                var searchInput = document.getElementById('sessions-search-input');
+                if (searchInput) searchInput.value = '';
+                openFolder(r.folderId);
+                setTimeout(function () {
+                    var cards = document.querySelectorAll('.session-card');
+                    cards.forEach(function (card) {
+                        var title = card.querySelector('.session-title');
+                        if (title && title.textContent === r.session.name) {
+                            card.style.outline = '2px solid #22c55e';
+                            card.style.outlineOffset = '2px';
+                            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            setTimeout(function () {
+                                card.style.outline = '';
+                                card.style.outlineOffset = '';
+                            }, 3000);
+                        }
+                    });
+                }, 200);
+            });
+            dropdown.appendChild(item);
+        });
+    }
+
+    container.appendChild(dropdown);
+}
+
+function removeSearchDropdown() {
+    var existing = document.getElementById('sessions-search-dropdown');
+    if (existing) existing.remove();
+}
+
