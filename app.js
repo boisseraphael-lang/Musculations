@@ -1,7 +1,12 @@
 // ===== Configuration =====
 const CONFIG = {
-    // Using CORS proxy to allow fetching from file:// protocol
-    csvUrl: 'https://corsproxy.io/?' + encodeURIComponent('https://docs.google.com/spreadsheets/d/e/2PACX-1vQMJ1QxebIt9_Jnc_JFHeYUnn8C5iENjLfhy33ERZrH-pqXc8jT-r7fSP78gMNJngpW3GgywLEnWgLV/pub?gid=0&single=true&output=csv'),
+    // Liste des proxys CORS pour assurer le chargement initial même si l'un est en panne
+    csvUrl: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQMJ1QxebIt9_Jnc_JFHeYUnn8C5iENjLfhy33ERZrH-pqXc8jT-r7fSP78gMNJngpW3GgywLEnWgLV/pub?gid=0&single=true&output=csv',
+    proxies: [
+        'https://api.allorigins.win/raw?url=',
+        'https://corsproxy.io/?',
+        'https://thingproxy.freeboard.io/fetch/'
+    ],
     // Images for muscle categories - using actual asset files
     muscleImages: {
         'Grand dorsal (Dos)': 'asset/Grand dorsal (Dos) back.png',
@@ -38,9 +43,10 @@ const CONFIG = {
 // ===== State =====
 let exercises = [];
 let muscleGroups = {};
-let currentMuscle = null;
 let currentExercise = null;
 let selectedMuscleHeads = []; // For muscle head filtering
+let isDataLoading = false; // Sécurité anti-boucle de chargement fetch
+let authListenersAttached = false; // Empêche le double attachement des events auth
 
 // ===== DOM Elements =====
 const elements = {
@@ -69,21 +75,79 @@ const elements = {
 document.addEventListener('DOMContentLoaded', init);
 
 async function init() {
+    // 1. Setup Auth Events UNE SEULE FOIS
+    if (!authListenersAttached) {
+        setupAuthEventListeners();
+        authListenersAttached = true;
+    }
+
+    // 2. Check Authentication
+    const user = loadCurrentUser();
+    updateAuthUI(user);
+
+    if (!user) {
+        document.getElementById('auth-overlay').style.display = 'flex';
+        hideLoading();
+        return; 
+    }
+
+    // 3. Charger les données (avec sécurité anti-double appel)
+    if (isDataLoading) {
+        console.warn('Chargement déjà en cours, ignoré.');
+        return;
+    }
+    isDataLoading = true;
+    
+    document.getElementById('auth-overlay').style.display = 'none';
+
     try {
         await loadExercises();
         setupEventListeners();
         renderCategories();
-        hideLoading();
     } catch (error) {
         console.error('Error initializing app:', error);
-        showError('Erreur lors du chargement des exercices');
+        alert(error.message || 'Erreur lors du chargement des exercices');
+    } finally {
+        hideLoading();
+        isDataLoading = false;
     }
 }
 
 // ===== Data Loading =====
+
+/**
+ * Charge les exercices avec stratégie CACHE-FIRST :
+ * 1. Si un cache localStorage existe → affichage instantané, puis refresh réseau en arrière-plan
+ * 2. Sinon → fetch réseau normal (premier chargement uniquement)
+ */
 async function loadExercises() {
-    const response = await fetch(CONFIG.csvUrl);
-    const csvText = await response.text();
+    const cached = localStorage.getItem('fitzone_csv_cache');
+
+    if (cached && cached.length > 100) {
+        // ✅ CACHE-FIRST : affichage instantané depuis le cache
+        console.log('⚡ Chargement instantané depuis le cache local');
+        processCSVData(cached);
+        // Rafraîchir les données en arrière-plan (non bloquant)
+        refreshFromNetwork();
+        return;
+    }
+
+    // Pas de cache → premier chargement, on doit attendre le réseau
+    console.log('🌐 Premier chargement, récupération depuis le réseau...');
+    const csvText = await fetchFromNetwork();
+
+    if (!csvText) {
+        throw new Error('Connexion impossible et aucune donnée en cache. Vérifiez votre connexion Internet.');
+    }
+
+    localStorage.setItem('fitzone_csv_cache', csvText);
+    processCSVData(csvText);
+}
+
+/**
+ * Parse le CSV et remplit exercises[] et muscleGroups{}
+ */
+function processCSVData(csvText) {
     exercises = parseCSV(csvText);
 
     // Group exercises by muscle
@@ -95,6 +159,79 @@ async function loadExercises() {
             }
             muscleGroups[exercise.muscle].push(exercise);
         }
+    });
+
+    // Inject custom exercises seamlessly after loading CSV data
+    if (typeof injectCustomExercises === 'function') {
+        injectCustomExercises();
+        if (typeof populateMuscleSelect === 'function') populateMuscleSelect();
+    }
+}
+
+/**
+ * Fetch CSV depuis le réseau avec timeout de 5s par proxy
+ * @returns {Promise<string|null>} Le texte CSV ou null si tout échoue
+ */
+async function fetchFromNetwork() {
+    const URLsToTry = [
+        ...CONFIG.proxies.map(p => p + encodeURIComponent(CONFIG.csvUrl)),
+        CONFIG.csvUrl
+    ];
+
+    for (const url of URLsToTry) {
+        try {
+            console.log(`Tentative de chargement : ${url}`);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+
+            const response = await fetch(url, {
+                cache: 'no-cache',
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+
+            if (!response.ok) continue;
+
+            const text = await response.text();
+
+            // Vérifier si c'est du CSV valide et non du HTML d'erreur
+            if (text.trim().toLowerCase().startsWith('<!doctype html>') || text.trim().toLowerCase().startsWith('<html')) {
+                continue;
+            }
+
+            if (text.length < 100) continue; // Trop court pour être nos données
+
+            console.log('✅ Chargement réussi via proxy/direct');
+            return text;
+        } catch (e) {
+            console.warn(`Échec avec ${url}:`, e.message);
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Rafraîchit les données en arrière-plan depuis le réseau
+ * Met à jour le cache et re-render si les données ont changé
+ */
+function refreshFromNetwork() {
+    fetchFromNetwork().then(newCsv => {
+        if (newCsv) {
+            const oldCache = localStorage.getItem('fitzone_csv_cache');
+            if (newCsv !== oldCache) {
+                console.log('🔄 Données mises à jour depuis le réseau');
+                localStorage.setItem('fitzone_csv_cache', newCsv);
+                processCSVData(newCsv);
+                renderCategories();
+            } else {
+                console.log('✅ Cache à jour, pas de changement');
+            }
+        } else {
+            console.warn('⚠️ Refresh réseau échoué, on garde le cache actuel');
+        }
+    }).catch(err => {
+        console.warn('⚠️ Erreur refresh arrière-plan:', err.message);
     });
 }
 
@@ -190,6 +327,12 @@ function setupEventListeners() {
         showHome();
     });
 
+    // Hard Reset Event Listener
+    const btnHardReset = document.getElementById('btn-hard-reset');
+    if (btnHardReset) {
+        btnHardReset.addEventListener('click', resetAllData);
+    }
+
     // Close search on outside click
     document.addEventListener('click', (e) => {
         if (!elements.searchInput.contains(e.target) && !elements.searchResults.contains(e.target)) {
@@ -199,6 +342,24 @@ function setupEventListeners() {
 
     // Filter panel events
     elements.filterReset.addEventListener('click', resetFilters);
+}
+
+// ===== Hard Reset =====
+function resetAllData() {
+    if (confirm("⚠️ ATTENTION ⚠️\n\nVoulez-vous vraiment supprimer toutes vos données (exercices personnalisés et dossiers enregistrés) ?\n\nCette action est irréversible.")) {
+        // Clear globally known keys
+        localStorage.removeItem('fitzone_user_folders');
+        localStorage.removeItem('fitzone_custom_exercises');
+        localStorage.removeItem('circuit_settings');
+        localStorage.removeItem('emom_settings');
+        // Clear dynamically saved mode workouts
+        const modes = ['bloc', 'circuit', 'parcours', 'superset', 'emom'];
+        modes.forEach(mode => localStorage.removeItem('fitzone_workout_' + mode));
+        localStorage.removeItem('fitzone_workout');
+
+        // Reload the page to start completely fresh
+        location.reload();
+    }
 }
 
 // ===== Search =====
@@ -258,17 +419,20 @@ function clearSearch() {
 function renderCategories() {
     const muscleNames = Object.keys(muscleGroups).sort();
 
-    elements.categoriesGrid.innerHTML = muscleNames.map(muscle => `
+    elements.categoriesGrid.innerHTML = muscleNames.map(muscle => {
+        const imageSrc = CONFIG.muscleImages[muscle] || 'asset/logo_muscu_app_2.png';
+        return `
         <div class="category-card" data-muscle="${muscle}">
             <div class="category-image-container">
-                <img class="category-image" src="${CONFIG.muscleImages[muscle] || ''}" alt="${muscle}" onerror="this.style.display='none'">
+                <img class="category-image" src="${imageSrc}" alt="${muscle}" onerror="this.src='asset/logo_muscu_app_2.png'; this.onerror=null;">
             </div>
             <div class="category-content">
                 <h3 class="category-name">${muscle}</h3>
                 <p class="category-count">${muscleGroups[muscle].length} exercice${muscleGroups[muscle].length > 1 ? 's' : ''}</p>
             </div>
         </div>
-    `).join('');
+        `;
+    }).join('');
 
     // Add click listeners
     elements.categoriesGrid.querySelectorAll('.category-card').forEach(card => {
@@ -381,7 +545,10 @@ function renderExercises(muscle) {
 
     elements.exercisesGrid.innerHTML = muscleExercises.map((exercise, index) => `
         <div class="exercise-card" data-exercise-id="${exercise.id}" style="animation-delay: ${index * 0.1}s">
-            <h3 class="exercise-card-name">${exercise.name}</h3>
+            <h3 class="exercise-card-name">
+                ${exercise.name}
+                ${exercise.isCustom ? '<span class="exercise-card-custom-badge">Perso</span>' : ''}
+            </h3>
             <span class="exercise-card-arrow">→</span>
         </div>
     `).join('');
@@ -611,6 +778,19 @@ function showExercise(exercise) {
     ]);
 }
 
+// ===== Loading & Error Helpers =====
+function hideLoading() {
+    const el = document.getElementById('loading');
+    if (el) el.style.display = 'none';
+    // Aussi montrer la vue home
+    if (elements.viewHome) elements.viewHome.classList.add('active');
+}
+
+function showError(message) {
+    hideLoading();
+    alert(message);
+}
+
 function hideAllViews() {
     elements.viewHome.classList.remove('active');
     elements.viewMuscle.classList.remove('active');
@@ -618,6 +798,9 @@ function hideAllViews() {
     // Also hide My Sessions view to prevent phantom rendering
     var viewMySessions = document.getElementById('view-my-sessions');
     if (viewMySessions) viewMySessions.classList.remove('active');
+    // Also hide Add Exercise view
+    var viewAddExercise = document.getElementById('view-add-exercise');
+    if (viewAddExercise) viewAddExercise.classList.remove('active');
 }
 
 // ===== Breadcrumb =====
@@ -656,23 +839,152 @@ function updateBreadcrumb(items) {
     });
 }
 
-// ===== Utilities =====
-function hideLoading() {
-    elements.loading.classList.add('hidden');
+// ===== Authentication UI & Events =====
+
+function updateAuthUI(user) {
+    const profileHeader = document.getElementById('user-profile-header');
+    const loginTrigger = document.getElementById('btn-login-trigger');
+    const overlay = document.getElementById('auth-overlay');
+
+    if (user) {
+        profileHeader.style.display = 'flex';
+        loginTrigger.style.display = 'none';
+        overlay.style.display = 'none';
+
+        document.getElementById('header-user-name').textContent = user.firstName;
+        const roleBadge = document.getElementById('user-role-badge');
+        
+        // Reset and Apply specific role classes
+        roleBadge.className = 'user-badge';
+        if (user.type === 'pro') {
+            roleBadge.textContent = 'PRO';
+            roleBadge.classList.add('badge-pro');
+        } else {
+            roleBadge.textContent = 'CLIENT';
+            roleBadge.classList.add('badge-client');
+        }
+    } else {
+        profileHeader.style.display = 'none';
+        loginTrigger.style.display = 'flex';
+        overlay.style.display = 'flex';
+    }
 }
 
-function showError(message) {
-    elements.loading.innerHTML = `
-        <div style="color: #ff6b35; font-size: 1.2rem;">${message}</div>
-        <button onclick="location.reload()" style="
-            margin-top: 1rem;
-            padding: 0.5rem 1rem;
-            background: #ff6b35;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-        ">Réessayer</button>
-    `;
+function showRegisterForm(prefillEmail = '') {
+    const loginForm = document.getElementById('login-form');
+    const registerForm = document.getElementById('register-form');
+    
+    loginForm.style.display = 'none';
+    registerForm.style.display = 'flex';
+    document.getElementById('auth-title').textContent = 'Créer un compte';
+    document.getElementById('auth-subtitle').textContent = 'Rejoignez la communauté Musculations';
+    
+    if (prefillEmail) {
+        document.getElementById('reg-email').value = prefillEmail;
+    }
+}
+
+function setupAuthEventListeners() {
+    // Switch between Login and Register
+    document.getElementById('goto-register').addEventListener('click', (e) => {
+        e.preventDefault();
+        document.getElementById('login-form').style.display = 'none';
+        document.getElementById('register-form').style.display = 'flex';
+        document.getElementById('auth-title').textContent = 'Créer un compte';
+        document.getElementById('auth-subtitle').textContent = 'Rejoignez la communauté Musculations';
+    });
+
+    document.getElementById('goto-login').addEventListener('click', (e) => {
+        e.preventDefault();
+        document.getElementById('register-form').style.display = 'none';
+        document.getElementById('login-form').style.display = 'flex';
+        document.getElementById('auth-title').textContent = 'Bienvenue sur Musculations';
+        document.getElementById('auth-subtitle').textContent = 'Connectez-vous pour accéder à vos programmes';
+    });
+
+    // Role selection
+    const roleCards = document.querySelectorAll('.role-card');
+    roleCards.forEach(card => {
+        card.addEventListener('click', () => {
+            roleCards.forEach(c => c.classList.remove('active'));
+            card.classList.add('active');
+        });
+    });
+
+    // Login Form Submit
+    document.getElementById('login-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const email = document.getElementById('login-email').value;
+        const pass = document.getElementById('login-password').value;
+
+        const result = loginUser(email, pass);
+        
+        if (result.success) {
+            // Cacher l'overlay et initialiser l'app proprement
+            document.getElementById('auth-overlay').style.display = 'none';
+            updateAuthUI(result.user);
+            
+            // Réinitialisation forcée pour charger le nouveau sandbox
+            isDataLoading = false; 
+            init(); 
+            
+            alert(`Bienvenue ${result.user.firstName} !`);
+        } else {
+            if (result.error === 'USER_NOT_FOUND') {
+                if (confirm("Ce compte n'existe pas. Voulez-vous créer un compte avec cet email ?")) {
+                    showRegisterForm(email);
+                }
+            } else {
+                alert("Email ou mot de passe incorrect.");
+            }
+        }
+    });
+
+    // Register Form Submit
+    document.getElementById('register-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const activeCard = document.querySelector('.role-card.active');
+        const selectedRole = activeCard ? activeCard.dataset.role : 'client';
+        
+        const userData = {
+            firstName: document.getElementById('reg-firstname').value,
+            lastName: document.getElementById('reg-lastname').value,
+            email: document.getElementById('reg-email').value,
+            age: document.getElementById('reg-age').value,
+            weight: document.getElementById('reg-weight').value,
+            height: document.getElementById('reg-height').value,
+            password: document.getElementById('reg-password').value,
+            type: selectedRole
+        };
+
+        try {
+            const user = registerUser(userData);
+            
+            // Cacher l'overlay et initialiser l'app proprement
+            document.getElementById('auth-overlay').style.display = 'none';
+            updateAuthUI(user);
+            
+            isDataLoading = false;
+            init();
+            
+            alert(`Compte ${selectedRole.toUpperCase()} créé ! Bienvenue ${user.firstName}.`);
+        } catch (err) {
+            alert(err.message);
+        }
+    });
+
+    // Logout
+    document.getElementById('btn-logout').addEventListener('click', () => {
+        if (confirm('Voulez-vous vous déconnecter ?')) {
+            logoutUser();
+        }
+    });
+
+    // Login Trigger (if closed somehow)
+    if (document.getElementById('btn-login-trigger')) {
+        document.getElementById('btn-login-trigger').addEventListener('click', () => {
+            document.getElementById('auth-overlay').style.display = 'flex';
+        });
+    }
 }
 

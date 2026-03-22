@@ -42,21 +42,20 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function loadUserFolders() {
-    try {
-        const saved = localStorage.getItem('fitzone_user_folders');
-        if (saved) {
-            userFolders = JSON.parse(saved);
-        } else {
-            userFolders = [];
-        }
-    } catch (e) {
-        console.error('Error loading folders:', e);
+    if (!currentUser) {
         userFolders = [];
+        return;
     }
+    
+    // Au lieu de localStorage global, on prend les sessions de l'objet utilisateur
+    userFolders = currentUser.sessions || [];
 }
 
 function saveUserFolders() {
-    localStorage.setItem('fitzone_user_folders', JSON.stringify(userFolders));
+    if (!currentUser) return;
+    
+    currentUser.sessions = userFolders;
+    syncCurrentUser(); // Synchronise avec fitzone_users
 }
 
 function setupSessionEventListeners() {

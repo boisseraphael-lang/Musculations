@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FitZone | Interactive Muscle Trainer</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <!-- Animated Background -->
+    <div class="bg-animation">
+        <div class="gradient-orb orb-1"></div>
+        <div class="gradient-orb orb-2"></div>
+        <div class="gradient-orb orb-3"></div>
+    </div>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="logo">
+            <span class="logo-icon">💪</span>
+            <span class="logo-text">FitZone</span>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="search-container">
+            <input type="text" id="search-input" placeholder="Rechercher un muscle ou exercice..." autocomplete="off">
+            <button class="search-btn" id="search-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="M21 21l-4.35-4.35"></path>
+                </svg>
+            </button>
+            <div class="search-results" id="search-results"></div>
+        </div>
+
+        <nav class="nav-links">
+            <a href="#" class="nav-link active">Muscles</a>
+            <a href="#" class="nav-link">Exercices</a>
+            <a href="#" class="nav-link">Programme</a>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Stats Bar -->
+        <div class="stats-bar">
+            <div class="stat-item">
+                <span class="stat-number" id="total-muscles">12</span>
+                <span class="stat-label">Muscles</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-number" id="total-exercises">--</span>
+                <span class="stat-label">Exercices</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-number" id="categories">6</span>
+                <span class="stat-label">Catégories</span>
+            </div>
+        </div>
+
+        <!-- Instruction Card -->
+        <div class="instruction-card">
+            <div class="instruction-icon">👆</div>
+            <p>Survolez les zones du corps pour les mettre en évidence, puis cliquez pour voir les exercices</p>
+        </div>
+
+        <!-- Centered Body Container -->
+        <div class="body-section">
+            <div class="body-wrapper">
+                <!-- Front View -->
+                <div class="body-view" id="body-front">
+                    <div class="view-label">
+                        <span class="view-icon">◀</span>
+                        Vue Avant
+                    </div>
+                    <div class="canvas-container" id="container-front">
+                        <canvas id="canvas-front"></canvas>
+                    </div>
+                </div>
+
+                <!-- Divider -->
+                <div class="body-divider">
+                    <div class="divider-line"></div>
+                    <div class="divider-icon">↔</div>
+                    <div class="divider-line"></div>
+                </div>
+
+                <!-- Back View -->
+                <div class="body-view" id="body-back">
+                    <div class="view-label">
+                        Vue Arrière
+                        <span class="view-icon">▶</span>
+                    </div>
+                    <div class="canvas-container" id="container-back">
+                        <canvas id="canvas-back"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Muscle Categories Quick Access -->
+        <div class="categories-section">
+            <h3 class="section-title">Catégories Musculaires</h3>
+            <div class="category-chips" id="category-chips">
+                <!-- Generated dynamically -->
+            </div>
+        </div>
+    </main>
+
+    <!-- Exercise Panel (Slide-in) -->
+    <aside class="exercise-panel" id="exercise-panel">
+        <div class="panel-header">
+            <h2 class="panel-title" id="panel-title">Sélectionnez un muscle</h2>
+            <button class="panel-close" id="panel-close">✕</button>
+        </div>
+        <div class="panel-content" id="panel-content">
+            <div class="empty-state">
+                <div class="empty-icon">🏋️</div>
+                <p>Cliquez sur un muscle pour voir les exercices disponibles</p>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Tooltip -->
+    <div class="tooltip" id="tooltip"></div>
+
+    <!-- Scripts -->
+    <script src="muscle-assets.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
